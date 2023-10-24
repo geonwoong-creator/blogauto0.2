@@ -4,3 +4,4 @@ streamlit
 PyPDF2
 tiktoken
 faiss-cpu
+google-search-results
