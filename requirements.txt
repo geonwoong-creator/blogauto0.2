@@ -1,7 +1,9 @@
-langchain
-openai
-streamlit
 PyPDF2
 tiktoken
 faiss-cpu
 google-search-results
+langchain>=0.2.0
+langchain-openai>=0.1.0
+openai>=1.30.0
+tiktoken
+streamlit
