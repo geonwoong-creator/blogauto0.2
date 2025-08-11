@@ -1,25 +1,64 @@
 #from dotenv import load_dotenv
 #load_dotenv()
 
-from langchain_openai import ChatOpenAI
+import os
 import streamlit as st
+from langchain_openai import ChatOpenAI
 
-chat_model = ChatOpenAI()
+st.set_page_config(page_title="글 생성", page_icon="🤖")
+st.title("글 자동생성")
 
-st.set_page_config(
-    page_title="글 생성",
-    page_icon="🤖",
-)
+# ① 사용자 입력: OpenAI API 키(비공개), 키워드
+api_key = st.text_input("OpenAI API 키를 입력하세요", type="password", help="키는 세션에만 사용되고 저장되지 않습니다.")
+content = st.text_input("키워드를 입력해주세요. 예: keyword1, keyword2")
 
+# ② 모델 선택(옵션)
+model_name = st.selectbox("모델 선택", ["gpt-4o-mini", "gpt-4o", "gpt-4o-mini-translate"], index=0)
 
+# ③ 프롬프트 템플릿
+base_prompt = """너는 최고의 블로그 글쓰기 전문가야. 너는 독자를 재미있게 끌어들이는 법을 잘 알고 있어.
+내가 키워드를 주면 그 키워드를 바탕으로 '반드시' HTML 코드 형식으로만 글을 작성해줘.
 
-st.title('글 자동생성')
+요구사항:
+1) 글을 시작하기 전에 간단한 소개(인트로)를 먼저 작성
+2) 전체는 HTML 기반으로 작성
+3) 최소 1200자 이상
+4) 모든 문장은 한국어
+5) <nav> 태그를 포함하고, 클릭 시 해당 섹션으로 이동하도록 앵커 구성
+6) 각 섹션 내용은 <p> 태그로 상세하고 길게(한 단락 300자 이상)
+7) 두 개 이상의 목록 태그(<ul> 또는 <ol>)를 사용해 섹션을 구성
+8) 최종 출력은 '오직 HTML 코드'만
 
-content = st.text_input('키워드를 입력해주세요. EX(keyword1,keyword2,)')
+키워드: {keywords}
+"""
 
-if st.button('글 생성'):
-    with st.spinner('글 생성 중.....'):
-        result = chat_model.predict("너는 최고의 블로그 글쓰기 전문가야. 너는 독자를 어떻게하면 재미있게 할수있는 알고있어. 내가 키워드를 주면 키워드를 바탕으로  html코드 형식으로 글를 써줄꺼야. 무조건 html형식으로 만들어줘 글을 쓸때 내가 알려주는 조건에 맞춰서 써줘 1. 글을 쓰기 전에, 글에 대한 간단한 소개를 먼저 적으세요. 2.게재된 기사는 HTML을 기반으로 합니다. 3. 1200자 이상을 만족합니다. 4. 모든 것을 한국어로 써주세요 5. <nav> 태그를 넣고 클릭한 후 이동합니다 6. <p>tag를 사용하여 섹션의 내용을 최대한 상세하고 길게 작성합니다. 7. 두 개 이상의 목록 태그를 사용하여 섹션을 구성합니다. 8. <p>tag로 쓰기는 300자 이상이어야 합니다. 9.html코드만 알려줘 키워드:" + content)
-        st.code(result, language='cshtml')
+# ④ 실행 버튼
+if st.button("글 생성"):
+    if not api_key:
+        st.warning("먼저 OpenAI API 키를 입력해주세요.")
+        st.stop()
+    if not content.strip():
+        st.warning("키워드를 입력해주세요.")
+        st.stop()
 
+    with st.spinner("글 생성 중..."):
+        try:
+            # ⑤ 모델 인스턴스는 키가 준비된 뒤에 생성
+            chat_model = ChatOpenAI(
+                model=model_name,
+                temperature=0.2,
+                api_key=api_key,
+            )
 
+            prompt = base_prompt.format(keywords=content.strip())
+            # 최신 LangChain 스타일: invoke → AIMessage 반환, .content로 본문 꺼내기
+            resp = chat_model.invoke(prompt)
+            html_result = resp.content if hasattr(resp, "content") else str(resp)
+
+            # ⑥ 결과 출력 (코드 블록으로 표시)
+            st.code(html_result, language="html")
+
+        except Exception as e:
+            # Streamlit Cloud에선 민감정보 보호로 에러가 가려질 수 있음
+            st.error("생성 중 오류가 발생했습니다. requirements 및 API 키 설정을 확인하세요.")
+            st.exception(e)
